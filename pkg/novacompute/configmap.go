@@ -20,6 +20,7 @@ type novaComputeConfigOptions struct {
 	RabbitTransportURL         string
 	NovaComputeCPUDedicatedSet string
 	NovaComputeCPUSharedSet    string
+	PassthroughWhitelist       string
 }
 
 // ScriptsConfigMap - scripts config map
@@ -44,7 +45,16 @@ func ScriptsConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
 }
 
 // TemplatesConfigMap - mandatory settings config map
-func TemplatesConfigMap(cr *novav1.NovaCompute, commonConfigMap *corev1.ConfigMap, ospSecrets *corev1.Secret, cmName string) *corev1.ConfigMap {
+func TemplatesConfigMap(cr *novav1.NovaCompute, commonConfigMap *corev1.ConfigMap, sriovConfigMap *corev1.ConfigMap, ospSecrets *corev1.Secret, cmName string) *corev1.ConfigMap {
+
+	passthrough := ""
+
+	if sriovConfigMap != nil && len((*sriovConfigMap).Data) != 0 {
+		if value, ok := sriovConfigMap.Data["passthroughWhitelist"]; ok {
+			passthrough = value
+		}
+	}
+
 	opts := novaComputeConfigOptions{
 		commonConfigMap.Data["internalAPIVip"],
 		commonConfigMap.Data["publicVip"],
@@ -55,7 +65,9 @@ func TemplatesConfigMap(cr *novav1.NovaCompute, commonConfigMap *corev1.ConfigMa
 		string(ospSecrets.Data["PlacementPassword"]),
 		string(ospSecrets.Data["RabbitTransportURL"]),
 		cr.Spec.NovaComputeCPUDedicatedSet,
-		cr.Spec.NovaComputeCPUSharedSet}
+		cr.Spec.NovaComputeCPUSharedSet,
+		passthrough,
+	}
 
 	cm := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{

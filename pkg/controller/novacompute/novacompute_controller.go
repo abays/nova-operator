@@ -29,6 +29,9 @@ import (
 var log = logf.Log.WithName("controller_novacompute")
 var ospHostAliases = []corev1.HostAlias{}
 
+// HACK: config map name with SRIOV config
+var sriovConfigMapName = "sriov-config"
+
 // Add creates a new NovaCompute Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -130,6 +133,17 @@ func (r *ReconcileNovaCompute) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, err
 	}
 
+	// Check for an SRIOV config map
+	sriovConfigMap := &corev1.ConfigMap{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: sriovConfigMapName, Namespace: instance.Namespace}, sriovConfigMap)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("SRIOV config map not found")
+	} else {
+		if err := controllerutil.SetControllerReference(instance, sriovConfigMap, r.scheme); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
 	// get insatnce.Spec.OspSecret which holds passwords and other sensitive information from the OSP environment
 	// TODO: handle secrets data change, like pwd change
 	ospSecrets := &corev1.Secret{}
@@ -177,7 +191,7 @@ func (r *ReconcileNovaCompute) Reconcile(request reconcile.Request) (reconcile.R
 
 	// templatesConfigMap
 	// TODO: when config handling is set this needs to be changed!! Right now passwords get stored in the resulting CM
-	templatesConfigMap := novacompute.TemplatesConfigMap(instance, commonConfigMap, ospSecrets, instance.Name+"-templates")
+	templatesConfigMap := novacompute.TemplatesConfigMap(instance, commonConfigMap, sriovConfigMap, ospSecrets, instance.Name+"-templates")
 	if err := controllerutil.SetControllerReference(instance, templatesConfigMap, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
