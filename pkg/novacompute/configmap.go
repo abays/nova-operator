@@ -47,7 +47,7 @@ func ScriptsConfigMap(cr *novav1.NovaCompute, cmName string) *corev1.ConfigMap {
 // TemplatesConfigMap - mandatory settings config map
 func TemplatesConfigMap(cr *novav1.NovaCompute, commonConfigMap *corev1.ConfigMap, sriovConfigMap *corev1.ConfigMap, ospSecrets *corev1.Secret, cmName string) *corev1.ConfigMap {
 
-	passthrough := ""
+	passthrough := "{}"
 
 	if sriovConfigMap != nil && len((*sriovConfigMap).Data) != 0 {
 		if value, ok := sriovConfigMap.Data["passthroughWhitelist"]; ok {
